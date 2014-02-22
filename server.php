@@ -70,9 +70,9 @@ function onReceive($serv, $fd, $from_id, $input)
         MessageHelper::verify($input);
         // Decrypt
         $input_decrypt = MessageHelper::decrypt($input);
-        $traffic_log->info(' UP ' . $input_decrypt);
+        $traffic_log->debug(' UP ' . $input_decrypt);
         // Unpack
-        $input_unpacked = MessageHelper::unpack($input);
+        $input_unpacked = MessageHelper::unpack($input_decrypt);
         $cmd = intval($input_unpacked['cmd']);
         // Route
         $routes = Application::get('routes');
