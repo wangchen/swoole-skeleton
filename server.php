@@ -62,12 +62,15 @@ function onStart($serv)
 function onReceive($serv, $fd, $from_id, $input)
 {
 
-    $log = Logger::getLogger('traffic');
-    $log->debug(Application::get_objects());
+    $log = Logger::getLogger('app');
+    $traffic_log = Logger::getLogger('traffic');
     $output = null;
     try {
         // Verify
         MessageHelper::verify($input);
+        // Decrypt
+        $input_decrypt = MessageHelper::decrypt($input);
+        $traffic_log->info(' UP ' . $input_decrypt);
         // Unpack
         $input_unpacked = MessageHelper::unpack($input);
         $cmd = intval($input_unpacked['cmd']);
@@ -80,8 +83,12 @@ function onReceive($serv, $fd, $from_id, $input)
         }
     } catch (Exception $e) {
         $log->error($e);
+        $output = MessageHelper::MSG_ILLEGAL;
     }
-    $serv->send($fd, is_null($output)?MessageHelper::MSG_ILLEGAL:$output);
+    $traffic_log->info(' DOWN ' . $output);
+    $output_pack = MessageHelper::pack($output);
+    $output_encrypt = MessageHelper::encrypt($output);
+    $serv->send($fd, $output_encrypt);
     $serv->close($fd);    
 }
 
