@@ -8,7 +8,7 @@ class MessageHelper
 	 * @return bool
 	 * @author kitta
 	 **/
-	function verify($msg)
+	public static function verify($msg)
 	{
 		return true;
 	}
@@ -19,7 +19,7 @@ class MessageHelper
 	 * @return array, contains key 'cmd' at the least
 	 * @author 
 	 **/
-	function unpack($msg)
+	public static function unpack($msg)
 	{
 		$arr= explode(':', $msg);
 		return array(
@@ -34,7 +34,29 @@ class MessageHelper
 	 * @return string
 	 * @author kitta
 	 **/
-	function pack($msg)
+	public static function pack($msg)
+	{
+		return $msg;
+	}
+
+	/**
+	 * undocumented function
+	 *
+	 * @return void
+	 * @author 
+	 **/
+	public static function encrypt($msg)
+	{
+		return $msg;
+	}
+
+	/**
+	 * undocumented function
+	 *
+	 * @return void
+	 * @author 
+	 **/
+	public static function decrypt($msg)
 	{
 		return $msg;
 	}
