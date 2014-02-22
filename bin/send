@@ -1,0 +1,5 @@
+#!/usr/bin/env sh
+
+exec 3<>/dev/tcp/$1/$2
+echo "$3" >&3
+cat <&3

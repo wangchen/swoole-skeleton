@@ -1,0 +1,23 @@
+server:
+  host: 127.0.0.1
+  port: 9501
+  settings:
+    timeout: 2.5
+    poll_thread_num: 2
+    writer_num: 2
+    worker_num: 4
+    backlog: 128
+    max_request: 50
+    dispatch_mode: 1 
+memcache:
+  host: 127.0.0.1
+  port: 12001
+mysql:
+  host: 127.0.0.1
+  port: 3306
+  username: root
+  password: 
+  databse: ali_game
+  charset: utf8 
+secure-key: miyou234qwer
+
