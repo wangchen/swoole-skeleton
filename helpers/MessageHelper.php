@@ -60,6 +60,14 @@ class MessageHelper
 	{
 		return $msg;
 	}
+
+	public static function send($serv, $fd, $output)
+	{
+        Logger::getLogger('traffic')->info(' DOWN ' . $output);
+        $output_pack = MessageHelper::pack($output);
+        $output_encrypt = MessageHelper::encrypt($output);
+        $serv->send($fd, $output_encrypt);
+	}
 }
 
 ?>

@@ -2,11 +2,13 @@
 namespace controllers\login;
 use \Application;
 use \Logger;
-function login()
+use \MessageHelper;
+
+function login($serv, $fd, $from_id, $input)
 {
 	$log = Logger::getLogger('app');
 	$mc = Application::get_object('memcache');
 	$log->debug("Memecache version is {$mc->getVersion()}");
-	return 'OK';
+	MessageHelper::send($serv, $fd, "done");
 }
 ?>

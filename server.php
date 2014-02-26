@@ -63,14 +63,12 @@ function onReceive($serv, $fd, $from_id, $input)
 {
 
     $log = Logger::getLogger('app');
-    $traffic_log = Logger::getLogger('traffic');
-    $output = null;
     try {
         // Verify
         MessageHelper::verify($input);
         // Decrypt
         $input_decrypt = MessageHelper::decrypt($input);
-        $traffic_log->debug(' UP ' . $input_decrypt);
+        Logger::getLogger('traffic')->info(' UP ' . $input_decrypt);
         // Unpack
         $input_unpacked = MessageHelper::unpack($input_decrypt);
         $cmd = intval($input_unpacked['cmd']);
@@ -79,16 +77,12 @@ function onReceive($serv, $fd, $from_id, $input)
         if (array_key_exists($cmd, $routes))
         {
             $func = $routes[$cmd];
-            $output = $func($fd, $from_id, $data);
+            $func($serv, $fd, $from_id, $input_unpacked);
         }
     } catch (Exception $e) {
         $log->error($e);
-        $output = MessageHelper::MSG_ILLEGAL;
+        MessageHelper::send($serv, MessageHelper::MSG_ILLEGAL);
     }
-    $traffic_log->info(' DOWN ' . $output);
-    $output_pack = MessageHelper::pack($output);
-    $output_encrypt = MessageHelper::encrypt($output);
-    $serv->send($fd, $output_encrypt);
     $serv->close($fd);    
 }
 
@@ -110,9 +104,9 @@ function onTimer($serv, $interval)
 function onWorkerStart($serv, $worker_id){
     $log = Logger::getLogger('app');
     $log->info("Worker launched. #".posix_getpid());
-    Utils::require_all(__DIR__, 'helpers');
-    Utils::require_all(__DIR__, 'controllers');
-    Utils::require_all(__DIR__, 'models');
+    Utils::require_all('helpers');
+    Utils::require_all('controllers');
+    Utils::require_all('models');
 }
 
 function onConnect ($serv, $fd){
