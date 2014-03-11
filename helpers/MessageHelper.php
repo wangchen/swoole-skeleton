@@ -2,6 +2,12 @@
 class MessageHelper
 {
 	const MSG_ILLEGAL = 'Illegal message!';
+
+	public function __construct() 
+	{
+		$this->buf = array();
+	}
+
 	/**
 	 * Verify message
 	 *
@@ -69,6 +75,14 @@ class MessageHelper
         $serv->send($fd, $output_encrypt);
 	}
 
+	private function set_buf($fd, $bytes) {
+		$this->buf[$fd] = $bytes;
+	}
+
+	private function get_buf($fd) {
+		return array_key_exists($fd, $this->buf) ? $this->buf[$fd] : null;	
+	}
+
 	/**
 	 * Parse the message
 	 * unsigned int   : 4 bytes, total length
@@ -80,14 +94,14 @@ class MessageHelper
 	 * @return void
 	 * @author 
 	 **/
-	public static function parse($input, $buf_get, $buf_set)
+	public function parse($fd, $input)
 	{
 		echo "Enter! " . strlen($input) . " $input\n";
 		$log = Logger::getLogger('MessageHelper');
 		$messages = array();
 		$read = self::string_reader($input);
 
-		$gbuf = $buf_get();
+		$gbuf = $this->get_buf($fd);
 
 		if (!empty($gbuf)) {
 			echo "Found thins in gbuf\n";
@@ -102,7 +116,7 @@ class MessageHelper
 				{
 					case 0:
 						// a complete msg
-						$buf_set(null);
+						$this->set_buf($fd, null);
 						echo "MSG LEN: " . strlen($gbuf . $rest_bytes) ."\n";
 						$msg = self::parse_msg($gbuf . $rest_bytes);
 						if (gettype($msg) === 'array') {
@@ -114,7 +128,7 @@ class MessageHelper
 						break;
 					case -1:
 						// a incomplete msg
-						$buf_set($gbuf . $rest_bytes);
+						$this->set_buf($fd, $gbuf . $rest_bytes);
 						break;
 					default;
 						; // should not happen
@@ -148,7 +162,7 @@ class MessageHelper
 			} else if ($cmp < 0) {
 				// a incomplete msg
 				echo "a incomplete msg\n";
-				$buf_set($current_bytes . $bytes);
+				$this->set_buf($fd, $current_bytes . $bytes);
 			}else {
 				echo "WTF!\n";
 				; // should not happen
@@ -167,7 +181,7 @@ class MessageHelper
 	// - -1 : illegal msg
 	// - not complete msg
 	// - message
-	public static function parse_msg($msg)
+	public function parse_msg($msg)
 	{
 		$head = self::parse_head(substr($msg, 0, 10));
 		if ($head === false) { // No head
@@ -180,7 +194,7 @@ class MessageHelper
 		return self::make_msg_obj($head, substr($msg, 10));
 	}
 
-	public static function parse_head($input) 
+	public function parse_head($input) 
 	{
 		if (strlen($input) >= 10) {
 			$msg_len = unpack('N', substr($input, 0, 4))[1];
