@@ -1,5 +1,6 @@
 <?php 
 require('log4php/Logger.php');
+Logger::configure(__DIR__ . '/../logging.xml');
 require __DIR__ . '/../helpers/MessageHelper.php';
 
 /**
@@ -35,7 +36,7 @@ class MessageHelperTest extends PHPUnit_Framework_TestCase
             $cache = $buf;
         };
         // part 1
-        $input = pack('c4I2a*', ord('m'), ord('r'), ord('c'), ord('h'), 11, 2, "hello");
+        $input = pack('N2na*', 21, 1, 2, "hello");
         $msg_array = MessageHelper::parse($input, $msg_get, $msg_set);
         // incomplete message
         $this->assertEquals(strlen($input), strlen($cache));
@@ -55,9 +56,8 @@ class MessageHelperTest extends PHPUnit_Framework_TestCase
         $msg_set = function($buf) use (&$cache){
             $cache = $buf;
         };
-        $magic_bytes = pack("c4", ord('m'), ord('r'), ord('c'), ord('h'));
         // Frame 1
-        $input = $magic_bytes . pack('I2a*', 13, 2, "hello");
+        $input = pack('N2na*', 23, 1, 2, "hello");
         $msg_array = MessageHelper::parse($input, $msg_get, $msg_set);
         // incomplete message
         $this->assertEquals(strlen($input), strlen($cache)); // len: 17
@@ -65,15 +65,15 @@ class MessageHelperTest extends PHPUnit_Framework_TestCase
         $this->assertEquals(0, count($msg_array));
 
         // Frame 2
-        $input = pack('a*', ' world 1') . $magic_bytes;
+        $input = pack('a*', ' world 1');
         // The 1st complete msg
         $msg_array = MessageHelper::parse($input, $msg_get, $msg_set);
         echo "cache: " . strlen($cache) . "\n";
-        $this->assertEquals(strlen($magic_bytes), strlen($cache));
+        $this->assertEquals(null, $cache);
         $this->assertEquals(1, count($msg_array));
 
         // Frame 3
-        $input = pack('I2a*', 13, 2, "hello world 2");
+        $input = pack('N2na*', 23, 1, 2, "hello world 2");
         $msg_array = MessageHelper::parse($input, $msg_get, $msg_set);
         // The 1st complete msg
         $this->assertEquals(null, $cache);
@@ -89,9 +89,9 @@ class MessageHelperTest extends PHPUnit_Framework_TestCase
         $msg_set = function($buf) use (&$cache){
             $cache = $buf;
         };
-        $magic_bytes = pack("c4", ord('m'), ord('r'), ord('c'), ord('h'));
         // Frame 1
-        $input = $magic_bytes . pack('I2a*', 13, 2, "hello");
+        $input =  pack('N2na*', 23, 1, 2, "hello");
+        var_dump(pack("N", 1));
         $msg_array = MessageHelper::parse($input, $msg_get, $msg_set);
         // incomplete message
         $this->assertEquals(strlen($input), strlen($cache)); // len: 17
@@ -99,15 +99,15 @@ class MessageHelperTest extends PHPUnit_Framework_TestCase
         $this->assertEquals(0, count($msg_array));
 
         // Frame 2
-        $input = pack('a*', ' world 1') . $magic_bytes. pack("I2", 13, 2);
+        $input = pack('a*', ' world 1') . pack("N2", 23, 1);
         // The 1st complete msg
         $msg_array = MessageHelper::parse($input, $msg_get, $msg_set);
         echo "cache: " . strlen($cache) . "\n";
-        $this->assertEquals(strlen($magic_bytes) + 8, strlen($cache));
+        $this->assertEquals(8, strlen($cache));
         $this->assertEquals(1, count($msg_array));
 
         // Frame 3
-        $input = pack('a*', "hello world 2");
+        $input = pack('na*', 2, "hello world 2");
         $msg_array = MessageHelper::parse($input, $msg_get, $msg_set);
         // The 1st complete msg
         $this->assertEquals(null, $cache);

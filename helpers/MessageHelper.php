@@ -71,93 +71,90 @@ class MessageHelper
 
 	/**
 	 * Parse the message
+	 * unsigned int   : 4 bytes, total length
+	 * unsigned int   : 4 bytes, UID
+	 * unsigned short : 2 bytes, message type
+	 * bytes          : body
 	 *
+	 * body_length = total_length - 10
 	 * @return void
 	 * @author 
 	 **/
 	public static function parse($input, $buf_get, $buf_set)
 	{
-		$head_length = 12;
-		echo "Enter!\n";
+		echo "Enter! " . strlen($input) . " $input\n";
 		$log = Logger::getLogger('MessageHelper');
 		$messages = array();
-		$buf = ''; // MUST no head here
 		$read = self::string_reader($input);
+
+		$gbuf = $buf_get();
+
+		if (!empty($gbuf)) {
+			echo "Found thins in gbuf\n";
+			$gbuf_length = strlen($gbuf);
+			if ($gbuf_length >= 4) {
+				echo "gbuf contains length field\n";
+				$total_length = unpack("N", substr($gbuf, 0, 4))[1];
+				$rest_length = $total_length - $gbuf_length;
+				$rest_bytes = $read($rest_length);
+				echo "read $rest_length == " . strlen($rest_bytes) . "\n";
+				switch ( strlen($rest_bytes) - $rest_length )
+				{
+					case 0:
+						// a complete msg
+						$buf_set(null);
+						echo "MSG LEN: " . strlen($gbuf . $rest_bytes) ."\n";
+						$msg = self::parse_msg($gbuf . $rest_bytes);
+						if (gettype($msg) === 'array') {
+							echo "a complete message\n";
+							$messages[] = $msg;
+						} else {
+							echo "WTF! $msg \n";
+						}
+						break;
+					case -1:
+						// a incomplete msg
+						$buf_set($gbuf . $rest_bytes);
+						break;
+					default;
+						; // should not happen
+				}
+			}
+		}
+		// Here gbuf should be empty
+		if (empty($gubf) === false) {
+			die("Global buf should be empty!");
+		}
 		while(true)
 		{
 			echo "LOOP\n";
-			$current_bytes = $read($head_length);
+			$current_bytes = $read(4);
 			if ($current_bytes === false)
 			{
 				break;
 			}
-			$head = self::parse_head($current_bytes);
-			if ($head === false)
-			{
-				$buf .= $current_bytes;
-			} else {
-				// process the last message
-				if (strlen($buf) <> 0) { 
-					$last_buf = $buf_get();
-					if (empty($last_buf))
-					{
-						// current data ($buf + $current_bytes) has no head
-						$log->warn("Illegal data: " . bin2hex($buf));
-					} else {
-						$msg = $self::parse_msg($last_buf . $buf . $current_bytes);
-						// All data will be dropped if parse failed 
-						if (gettype($msg) === 'array') $messages[] = $msg;
-					}
-					// Clean buffers
-					$buf_set(NULL);
-					$buf = '';
-				} 
-				// process the current message
-				$body = $read($head['msg_len']);
-				if ($head['msg_len'] === strlen($body)) {
-					$messages[] = self::make_msg_obj($head, $body);
-				} else {
-					$buf .= $current_bytes . $body;
+			$length = unpack("N", $current_bytes)[1];
+			if ($length == false) continue; // next byte
+			$bytes = $read($length);
+			$cmp = strlen($bytes) - $length + 4;
+			echo strlen($bytes) . "<=>" . $length . "\n";
+			if ($cmp === 0){
+				// a complete msg
+				$msg = self::parse_msg($current_bytes . $bytes);
+				if (gettype($msg) === 'array') {
+					echo "a complete message\n";
+					$messages[] = $msg;
 				}
-			} // end if
-		} // end while
-
-		// Finally check buffers
-		if (strlen($buf) <> 0) {
-			$bytes = $buf_get() . $buf;
-			$head = self::parse_head(substr($bytes, 0, $head_length));
-			if ($head === false)
-			{
-				// No head, empty gbuf
-				$buf_set(null);
-			} else {
-				$whole_len = $head['msg_len'] + $head_length;
-				if (strlen($bytes) < $whole_len)
-				{
-					// a incomplete message
-					echo "a incomplete message\n";
-					$buf_set($bytes);
-				} else if (strlen($bytes) >= $whole_len) {
-					$msg = self::parse_msg(substr($bytes, 0, $whole_len));
-					if (gettype($msg) === 'array') {
-						// a complete message
-						echo "a complete message\n";
-						$messages[] = $msg;
-						$buf_set(null);
-					} else {
-						// This msg is corrupt
-						echo "This msg is corrupt\n";
-						$buf_set(null);
-					} 
-					if (strlen($bytes) > $whole_len) 
-					{
-						echo "Store the rest bytes, length: $whole_len\n";
-						$buf_set(substr($bytes, $whole_len));
-					}
-				}
-
+			} else if ($cmp < 0) {
+				// a incomplete msg
+				echo "a incomplete msg\n";
+				$buf_set($current_bytes . $bytes);
+			}else {
+				echo "WTF!\n";
+				; // should not happen
 			}
-		} 
+
+		} // end while
 		return $messages;
 	}
 
@@ -172,29 +169,28 @@ class MessageHelper
 	// - message
 	public static function parse_msg($msg)
 	{
-		$head = self::parse_head(substr($msg, 0, 12));
+		$head = self::parse_head(substr($msg, 0, 10));
 		if ($head === false) { // No head
 			return -1;
-		} else if ($head['msg_len'] <> strlen($msg) -12) {
+		} else if ($head['msg_len'] <> strlen($msg)) {
 			// todo: fix
 			// Length not match
 			return -2;
 		}
-		return self::make_msg_obj($head, substr($msg, 12));
+		return self::make_msg_obj($head, substr($msg, 10));
 	}
 
 	public static function parse_head($input) 
 	{
-		if (strlen($input) >= 12) {
-			$magic_bytes = self::bin2str(unpack('c4', substr($input, 0, 4)));
-			if ($magic_bytes === 'mrch') {
-				$msg_len = unpack('I', substr($input, 4, 8))[1];
-				$msg_type = unpack('I', substr($input, 8, 12))[1];
-				return array(
-					'msg_len' => $msg_len,
-					'msg_type' => $msg_type
-				);
-			}
+		if (strlen($input) >= 10) {
+			$msg_len = unpack('N', substr($input, 0, 4))[1];
+			$uid = unpack('N', substr($input, 4, 8))[1];
+			$msg_type = unpack('n', substr($input, 8, 10))[1];
+			return array(
+				'uid' => $uid,
+				'msg_len' => $msg_len,
+				'msg_type' => $msg_type
+			);
 		}
 		return false;
 	}
